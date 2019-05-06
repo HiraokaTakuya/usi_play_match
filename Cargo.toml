@@ -1,0 +1,8 @@
+[package]
+name = "usi_play_match"
+version = "0.1.0"
+authors = ["HiraokaTakuya <hiraoka64@gmail.com>"]
+edition = "2018"
+
+[dependencies]
+structopt = "0.2.15"
