@@ -64,14 +64,15 @@ struct MatchPair {
 }
 
 impl MatchPair {
-    fn start_matches(&mut self) {
-        self.engines[0].input("setoption name Threads value 1");
-        self.engines[0].input("setoption name USI_Hash value 1024");
-        self.engines[0].input("setoption name Byoyomi_Margin value 0");
-
-        self.engines[1].input("setoption name Threads value 1");
-        self.engines[1].input("setoption name USI_Hash value 1024");
-        self.engines[1].input("setoption name Byoyomi_Margin value 0");
+    fn start_matches(&mut self, eval_dirs: [String; 2], threadss: [usize; 2]) {
+        for (i, engine) in self.engines.iter_mut().enumerate() {
+            engine.input(&format!("setoption name Threads value {}", threadss[i]));
+            if eval_dirs[i] != "-" {
+                engine.input(&format!("setoption name Eval_Dir value {}", eval_dirs[i]));
+            }
+            engine.input("setoption name USI_Hash value 1024");
+            engine.input("setoption name Byoyomi_Margin value 0");
+        }
 
         for engine in self.engines.iter_mut() {
             engine.input("isready");
@@ -162,13 +163,17 @@ impl MatchManager {
         }
         MatchManager { match_pairs }
     }
-    fn start_matches(&mut self) {
+    fn start_matches(&mut self, eval_dirs: [String; 2], threadss: [usize; 2]) {
         let mut threads = vec![];
         for i in 0..self.match_pairs.len() {
             let match_pair_cloned = self.match_pairs[i].clone();
             match_pair_cloned.lock().unwrap().first_move_engine_index = i % 2;
+            let eval_dirs_cloned = eval_dirs.clone();
             threads.push(std::thread::spawn(move || {
-                match_pair_cloned.lock().unwrap().start_matches();
+                match_pair_cloned
+                    .lock()
+                    .unwrap()
+                    .start_matches(eval_dirs_cloned, threadss);
             }));
         }
         for thread in threads {
@@ -222,6 +227,16 @@ struct Opt {
     /// Reference USI engine
     #[structopt(parse(from_os_str))]
     reference: PathBuf,
+    /// Target engine Eval_Dir ("-" is default Eval_Dir)
+    #[structopt(parse(from_os_str))]
+    target_eval_dir: PathBuf,
+    /// Reference engine Eval_Dir ("-" is default Eval_Dir)
+    #[structopt(parse(from_os_str))]
+    reference_eval_dir: PathBuf,
+    /// Target engine Threads
+    target_threads: usize,
+    /// Reference engine Threads
+    reference_threads: usize,
     /// Parallel Num
     parallel_num: usize,
     /// Match Num
@@ -239,5 +254,14 @@ fn main() {
         opt.match_num,
         opt.movetime,
     );
-    match_manager.start_matches();
+    let eval_dirs = [
+        opt.target_eval_dir.as_path().to_str().unwrap().to_string(),
+        opt.reference_eval_dir
+            .as_path()
+            .to_str()
+            .unwrap()
+            .to_string(),
+    ];
+    let threadss = [opt.target_threads, opt.reference_threads];
+    match_manager.start_matches(eval_dirs, threadss);
 }
