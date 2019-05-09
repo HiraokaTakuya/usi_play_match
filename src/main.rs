@@ -80,65 +80,8 @@ impl MatchPair {
             engine.output("readyok");
         }
 
-        'next_game: while self.current_match_num.fetch_add(1, Ordering::Relaxed) < self.match_num {
-            for engine in self.engines.iter_mut() {
-                engine.input("usinewgame");
-            }
-
-            let mut sfen = "position startpos moves".to_string();
-            self.first_move_engine_index = 1 - self.first_move_engine_index;
-            let mut color = self.first_move_engine_index;
-            let mut key_hash = std::collections::HashMap::new();
-            for _ply in 1..=320 {
-                self.engines[color].input(&sfen);
-                self.engines[color].input("key");
-                let key = self.engines[color].output_one_line();
-                *key_hash.entry(key.clone()).or_insert(1) += 1;
-                if key_hash[&key] >= 4 {
-                    self.draw.fetch_add(1, Ordering::Relaxed);
-                    println!(
-                        "{}",
-                        result_string(
-                            self.win[0].load(Ordering::Relaxed),
-                            self.win[1].load(Ordering::Relaxed),
-                            self.draw.load(Ordering::Relaxed)
-                        )
-                    );
-                    continue 'next_game;
-                }
-                self.engines[color].input(&format!("go byoyomi {}", self.movetime));
-                let bestmove = self.engines[color].output("bestmove");
-                let bestmove = bestmove.split_whitespace().collect::<Vec<_>>()[1];
-                match bestmove {
-                    "win" => {
-                        self.win[color].fetch_add(1, Ordering::Relaxed);
-                        println!(
-                            "{}",
-                            result_string(
-                                self.win[0].load(Ordering::Relaxed),
-                                self.win[1].load(Ordering::Relaxed),
-                                self.draw.load(Ordering::Relaxed)
-                            )
-                        );
-                        continue 'next_game;
-                    }
-                    "resign" => {
-                        self.win[1 - color].fetch_add(1, Ordering::Relaxed);
-                        println!(
-                            "{}",
-                            result_string(
-                                self.win[0].load(Ordering::Relaxed),
-                                self.win[1].load(Ordering::Relaxed),
-                                self.draw.load(Ordering::Relaxed)
-                            )
-                        );
-                        continue 'next_game;
-                    }
-                    m => sfen += &format!(" {}", m),
-                }
-                color = 1 - color;
-            }
-            self.draw.fetch_add(1, Ordering::Relaxed);
+        while self.current_match_num.fetch_add(1, Ordering::Relaxed) < self.match_num {
+            self.start_one_match();
             println!(
                 "{}",
                 result_string(
@@ -148,6 +91,42 @@ impl MatchPair {
                 )
             );
         }
+    }
+    fn start_one_match(&mut self) {
+        for engine in self.engines.iter_mut() {
+            engine.input("usinewgame");
+        }
+
+        let mut sfen = "position startpos moves".to_string();
+        self.first_move_engine_index = 1 - self.first_move_engine_index;
+        let mut color = self.first_move_engine_index;
+        let mut key_hash = std::collections::HashMap::new();
+        for _ply in 1..=320 {
+            self.engines[color].input(&sfen);
+            self.engines[color].input("key");
+            let key = self.engines[color].output_one_line();
+            *key_hash.entry(key.clone()).or_insert(1) += 1;
+            if key_hash[&key] >= 4 {
+                self.draw.fetch_add(1, Ordering::Relaxed);
+                return;
+            }
+            self.engines[color].input(&format!("go byoyomi {}", self.movetime));
+            let bestmove = self.engines[color].output("bestmove");
+            let bestmove = bestmove.split_whitespace().collect::<Vec<_>>()[1];
+            match bestmove {
+                "win" => {
+                    self.win[color].fetch_add(1, Ordering::Relaxed);
+                    return;
+                }
+                "resign" => {
+                    self.win[1 - color].fetch_add(1, Ordering::Relaxed);
+                    return;
+                }
+                m => sfen += &format!(" {}", m),
+            }
+            color = 1 - color;
+        }
+        self.draw.fetch_add(1, Ordering::Relaxed);
     }
 }
 
