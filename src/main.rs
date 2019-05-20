@@ -188,10 +188,13 @@ fn winning_rate(win: usize, lose: usize, draw: usize) -> f64 {
     win_mult_2 as f64 / total_mult_2 as f64
 }
 
-fn confidence_interval(win: usize, lose: usize, draw: usize) -> f64 {
+const INTERVAL_95_PERCENT: f64 = 1.96;
+const INTERVAL_99_PERCENT: f64 = 2.58;
+
+fn confidence_interval(win: usize, lose: usize, draw: usize, interval_constant: f64) -> f64 {
     let total = win + lose + draw;
     let win_rate = winning_rate(win, lose, draw);
-    1.96 * (win_rate * (1.0 - win_rate) / total as f64).sqrt()
+    interval_constant * (win_rate * (1.0 - win_rate) / total as f64).sqrt()
 }
 
 fn elo(win: usize, lose: usize, draw: usize) -> Option<f64> {
@@ -204,13 +207,14 @@ fn elo(win: usize, lose: usize, draw: usize) -> Option<f64> {
 
 fn result_string(win: usize, lose: usize, draw: usize) -> String {
     format!(
-        "({m:>5}) W: {w:>5} L: {l:>5} D: {d:>5} WR: {wr:>6.2}% +-{ci:>6.2}% Elo: {elo:>4}",
+        "({m:>5}) W: {w:>5} L: {l:>5} D: {d:>5} WR: {wr:>6.2}% +-{ci95:>6.2}%(95%) {ci99:>6.2}%(99%) Elo: {elo:>4}",
         m = win + lose + draw,
         w = win,
         l = lose,
         d = draw,
         wr = 100.0 * winning_rate(win, lose, draw),
-        ci = 100.0 * confidence_interval(win, lose, draw),
+        ci95 = 100.0 * confidence_interval(win, lose, draw, INTERVAL_95_PERCENT),
+        ci99 = 100.0 * confidence_interval(win, lose, draw, INTERVAL_99_PERCENT),
         elo = match elo(win, lose, draw) {
             Some(n) => (n.round() as i64).to_string(),
             None => "None".to_string(),
