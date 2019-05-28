@@ -61,6 +61,7 @@ struct MatchPair {
     current_match_num: Arc<AtomicUsize>,
     match_num: usize,
     movetime: usize,
+    nodes_mode: bool,
 }
 
 impl MatchPair {
@@ -116,7 +117,11 @@ impl MatchPair {
                 self.draw.fetch_add(1, Ordering::Relaxed);
                 return;
             }
-            self.engines[color].input(&format!("go byoyomi {}", self.movetime));
+            if self.nodes_mode {
+                self.engines[color].input(&format!("go nodes {}", self.movetime));
+            } else {
+                self.engines[color].input(&format!("go byoyomi {}", self.movetime));
+            }
             let bestmove = self.engines[color].output("bestmove");
             let bestmove = bestmove.split_whitespace().collect::<Vec<_>>()[1];
             match bestmove {
@@ -147,6 +152,7 @@ impl MatchManager {
         parallel_num: usize,
         match_num: usize,
         movetime: usize,
+        nodes_mode: bool,
     ) -> MatchManager {
         let win = Arc::new([AtomicUsize::new(0), AtomicUsize::new(0)]);
         let draw = Arc::new(AtomicUsize::new(0));
@@ -164,6 +170,7 @@ impl MatchManager {
                 current_match_num: current_match_num.clone(),
                 match_num,
                 movetime,
+                nodes_mode,
             })));
         }
         MatchManager { match_pairs }
@@ -252,6 +259,9 @@ struct Opt {
     match_num: usize,
     /// movetime
     movetime: usize,
+    /// Uses movetime as nodes
+    #[structopt(long = "nodes")]
+    nodes_mode: bool,
 }
 
 fn main() {
@@ -262,6 +272,7 @@ fn main() {
         opt.parallel_num,
         opt.match_num,
         opt.movetime,
+        opt.nodes_mode,
     );
     let eval_dirs = [
         opt.target_eval_dir.as_path().to_str().unwrap().to_string(),

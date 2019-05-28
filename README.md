@@ -10,6 +10,7 @@ USAGE:
 
 FLAGS:
     -h, --help       Prints help information
+        --nodes      Uses movetime as nodes
     -V, --version    Prints version information
 
 ARGS:
