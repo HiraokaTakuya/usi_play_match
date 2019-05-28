@@ -66,12 +66,17 @@ struct MatchPair {
 impl MatchPair {
     fn start_matches(&mut self, eval_dirs: [String; 2], threadss: [usize; 2]) {
         for (i, engine) in self.engines.iter_mut().enumerate() {
-            engine.input(&format!("setoption name Threads value {}", threadss[i]));
+            engine.input(&format!("setoption name Threads value {}", threadss[i])); // for Apery and YaneuraOu
             if eval_dirs[i] != "-" {
-                engine.input(&format!("setoption name Eval_Dir value {}", eval_dirs[i]));
+                engine.input(&format!("setoption name Eval_Dir value {}", eval_dirs[i])); // for Apery
+                engine.input(&format!("setoption name EvalDir value {}", eval_dirs[i])); // for YaneuraOu
             }
-            engine.input("setoption name USI_Hash value 1024");
-            engine.input("setoption name Byoyomi_Margin value 0");
+            engine.input("setoption name USI_Hash value 1024"); // for Apery
+            engine.input("setoption name Hash value 1024"); // for YaneuraOu
+
+            engine.input("setoption name Byoyomi_Margin value 0"); // for Apery
+            engine.input("setoption name NetWorkDelay value 0"); // for YaneuraOu
+            engine.input("setoption name NetWorkDelay2 value 0"); // for YaneuraOu
         }
 
         for engine in self.engines.iter_mut() {
@@ -104,7 +109,7 @@ impl MatchPair {
         let mut key_hash = std::collections::HashMap::new();
         for _ply in 1..=320 {
             self.engines[color].input(&sfen);
-            self.engines[color].input("key");
+            self.engines[color].input("key"); // for Apery and YaneuraOu
             let key = self.engines[color].output_one_line();
             *key_hash.entry(key.clone()).or_insert(1) += 1;
             if key_hash[&key] >= 4 {
