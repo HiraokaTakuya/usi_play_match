@@ -65,19 +65,38 @@ struct MatchPair {
 }
 
 impl MatchPair {
-    fn start_matches(&mut self, eval_dirs: [String; 2], threadss: [usize; 2]) {
-        for (i, engine) in self.engines.iter_mut().enumerate() {
-            engine.input(&format!("setoption name Threads value {}", threadss[i])); // for Apery and YaneuraOu
-            if eval_dirs[i] != "-" {
-                engine.input(&format!("setoption name Eval_Dir value {}", eval_dirs[i])); // for Apery
-                engine.input(&format!("setoption name EvalDir value {}", eval_dirs[i])); // for YaneuraOu
-            }
-            engine.input("setoption name USI_Hash value 1024"); // for Apery
-            engine.input("setoption name Hash value 1024"); // for YaneuraOu
+    fn start_matches(&mut self, opt: Opt) {
+        let eval_dirs = [
+            opt.target_eval_dir.as_path().to_str().unwrap().to_string(),
+            opt.reference_eval_dir
+                .as_path()
+                .to_str()
+                .unwrap()
+                .to_string(),
+        ];
+        let threadss = [opt.target_threads, opt.reference_threads];
+        let usi_hashes = [opt.target_usi_hash, opt.reference_usi_hash];
 
-            engine.input("setoption name Byoyomi_Margin value 0"); // for Apery
-            engine.input("setoption name NetWorkDelay value 0"); // for YaneuraOu
-            engine.input("setoption name NetWorkDelay2 value 0"); // for YaneuraOu
+        for (i, engine) in self.engines.iter_mut().enumerate() {
+            // for Apery and YaneuraOu
+            engine.input(&format!("setoption name Threads value {}", threadss[i]));
+            if eval_dirs[i] != "-" {
+                // for Apery
+                engine.input(&format!("setoption name Eval_Dir value {}", eval_dirs[i]));
+                // for YaneuraOu
+                engine.input(&format!("setoption name EvalDir value {}", eval_dirs[i]));
+            }
+            // for Apery
+            engine.input(&format!("setoption name USI_Hash value {}", usi_hashes[i]));
+            // for YaneuraOu
+            engine.input(&format!("setoption name Hash value {}", usi_hashes[i]));
+
+            // for Apery
+            engine.input("setoption name Byoyomi_Margin value 0");
+            // for YaneuraOu
+            engine.input("setoption name NetWorkDelay value 0");
+            // for YaneuraOu
+            engine.input("setoption name NetWorkDelay2 value 0");
         }
 
         for engine in self.engines.iter_mut() {
@@ -175,17 +194,14 @@ impl MatchManager {
         }
         MatchManager { match_pairs }
     }
-    fn start_matches(&mut self, eval_dirs: [String; 2], threadss: [usize; 2]) {
+    fn start_matches(&mut self, opt: Opt) {
         let mut threads = vec![];
         for i in 0..self.match_pairs.len() {
             let match_pair_cloned = self.match_pairs[i].clone();
             match_pair_cloned.lock().unwrap().first_move_engine_index = i % 2;
-            let eval_dirs_cloned = eval_dirs.clone();
+            let opt = opt.clone();
             threads.push(std::thread::spawn(move || {
-                match_pair_cloned
-                    .lock()
-                    .unwrap()
-                    .start_matches(eval_dirs_cloned, threadss);
+                match_pair_cloned.lock().unwrap().start_matches(opt);
             }));
         }
         for thread in threads {
@@ -234,31 +250,46 @@ fn result_string(win: usize, lose: usize, draw: usize) -> String {
     )
 }
 
-#[derive(Debug, StructOpt)]
+#[derive(Debug, Clone, StructOpt)]
 #[structopt(name = "usi_play_match", about = "Play matches and print results.")]
 struct Opt {
     /// Target USI engine
     #[structopt(parse(from_os_str))]
     target: PathBuf,
+
     /// Reference USI engine
     #[structopt(parse(from_os_str))]
     reference: PathBuf,
+
     /// Target engine Eval_Dir ("-" is default Eval_Dir)
     #[structopt(parse(from_os_str))]
     target_eval_dir: PathBuf,
+
     /// Reference engine Eval_Dir ("-" is default Eval_Dir)
     #[structopt(parse(from_os_str))]
     reference_eval_dir: PathBuf,
+
     /// Target engine Threads
     target_threads: usize,
+
     /// Reference engine Threads
     reference_threads: usize,
+
+    /// Target engine USI_Hash
+    target_usi_hash: usize,
+
+    /// Reference engine USI_Hash
+    reference_usi_hash: usize,
+
     /// Parallel Num
     parallel_num: usize,
+
     /// Match Num
     match_num: usize,
+
     /// movetime
     movetime: usize,
+
     /// Uses movetime as nodes
     #[structopt(long = "nodes")]
     nodes_mode: bool,
@@ -274,14 +305,5 @@ fn main() {
         opt.movetime,
         opt.nodes_mode,
     );
-    let eval_dirs = [
-        opt.target_eval_dir.as_path().to_str().unwrap().to_string(),
-        opt.reference_eval_dir
-            .as_path()
-            .to_str()
-            .unwrap()
-            .to_string(),
-    ];
-    let threadss = [opt.target_threads, opt.reference_threads];
-    match_manager.start_matches(eval_dirs, threadss);
+    match_manager.start_matches(opt);
 }
