@@ -155,7 +155,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "usi_play_match"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "structopt 0.2.15 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
