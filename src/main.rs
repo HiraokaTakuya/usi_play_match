@@ -2,8 +2,9 @@ use std::io::prelude::*;
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
 use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 use structopt::StructOpt;
+use tokio::sync::Mutex;
 
 struct Engine {
     process: std::process::Child,
@@ -194,19 +195,19 @@ impl MatchManager {
         }
         MatchManager { match_pairs }
     }
-    fn start_matches(&mut self, opt: Opt) {
-        let mut threads = vec![];
+    async fn start_matches(&mut self, opt: Opt) -> anyhow::Result<()> {
+        let mut handles = vec![];
         for i in 0..self.match_pairs.len() {
             let match_pair_cloned = self.match_pairs[i].clone();
-            match_pair_cloned.lock().unwrap().first_move_engine_index = i % 2;
             let opt = opt.clone();
-            threads.push(std::thread::spawn(move || {
-                match_pair_cloned.lock().unwrap().start_matches(opt);
+            handles.push(tokio::spawn(async move {
+                match_pair_cloned.lock().await.start_matches(opt);
             }));
         }
-        for thread in threads {
-            thread.join().unwrap();
+        for handle in handles {
+            handle.await?;
         }
+        Ok(())
     }
 }
 
@@ -295,7 +296,8 @@ struct Opt {
     nodes_mode: bool,
 }
 
-fn main() {
+#[tokio::main]
+async fn main() -> anyhow::Result<()> {
     let opt = Opt::from_args();
     let mut match_manager = MatchManager::new(
         opt.target.as_path().to_str().unwrap(),
@@ -305,5 +307,6 @@ fn main() {
         opt.movetime,
         opt.nodes_mode,
     );
-    match_manager.start_matches(opt);
+    match_manager.start_matches(opt).await?;
+    Ok(())
 }
