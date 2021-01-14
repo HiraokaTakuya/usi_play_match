@@ -132,7 +132,7 @@ impl MatchPair {
             self.engines[color].input(&sfen);
             self.engines[color].input("key"); // for Apery and YaneuraOu
             let key = self.engines[color].output_one_line();
-            *key_hash.entry(key.clone()).or_insert(1) += 1;
+            *key_hash.entry(key.clone()).or_insert(0) += 1;
             if key_hash[&key] >= 4 {
                 self.draw.fetch_add(1, Ordering::Relaxed);
                 return;

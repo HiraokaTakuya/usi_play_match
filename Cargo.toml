@@ -1,6 +1,6 @@
 [package]
 name = "usi_play_match"
-version = "1.0.0"
+version = "2.0.0"
 authors = ["HiraokaTakuya <hiraoka64@gmail.com>"]
 edition = "2018"
 
