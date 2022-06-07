@@ -1,10 +1,10 @@
 [package]
 name = "usi_play_match"
-version = "2.0.0"
+version = "2.0.1"
 authors = ["HiraokaTakuya <hiraoka64@gmail.com>"]
-edition = "2018"
+edition = "2021"
 
 [dependencies]
-anyhow = "1.0.37"
-structopt = "0.3.21"
-tokio = { version = "1.0.1", features = ["full"] }
+anyhow = "1.0.57"
+structopt = "0.3.26"
+tokio = { version = "1.19.2", features = ["full"] }
